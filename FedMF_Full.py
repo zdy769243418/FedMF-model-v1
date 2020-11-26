@@ -46,6 +46,7 @@ if __name__ == '__main__':
 
     # Init process
     # user_vector 7*100
+    result = open("result/FedMF-Full.txt", "w")
     user_vector = np.zeros([len(user_id_list), hidden_dim]) + 0.01
 
     # item_vector 40*100
@@ -56,11 +57,11 @@ if __name__ == '__main__':
 
     # server加密item矩阵的时间 t1
     t1 = time.time() - t
-    print('Item profile encrypt using', t1, 'seconds')
+    print('Item profile encrypt using', t1, 'seconds', file=result)
     for iteration in range(max_iteration):
 
-        print('###################')
-        print('Iteration', iteration)
+        print('###################', file=result)
+        print('Iteration', iteration, file=result)
 
         t = time.time()
 
@@ -68,17 +69,17 @@ if __name__ == '__main__':
                       sys.getsizeof(encrypted_item_vector[0][0].exponent)) * \
                      len(encrypted_item_vector) * \
                      len(encrypted_item_vector[0])
-        print('Size of Encrypted-item-vector', cache_size / (2 ** 20), 'MB')
+        print('Size of Encrypted-item-vector', cache_size / (2 ** 20), 'MB', file=result)
         communication_time = cache_size * 8 / (band_width / 4 * 2 ** 30)
         # 打印从server传输item 矩阵到edge的时间t2，假设传输速率为0.25Gb/s
         t2 = communication_time
         print('transform item matrix from server to edge using a %s Gb/s' % 0.25,
-              'communication will use %s seconds' % communication_time)
+              'communication will use %s seconds' % communication_time, file=result)
 
         # 打印从edge传输item 矩阵到user的时间t3,假设传输速率为1Gb/s
-        t3 = communication_time/4
+        t3 = communication_time / 4
         print('transform item matrix from edge to user using a %s Gb/s' % band_width,
-              'communication will use %s seconds' % t3)
+              'communication will use %s seconds' % t3, file=result)
         # edge0
         # 保存从user0、user1、user2、user3返回的梯度值
         edge0_encrypted_gradient_from_user = []
@@ -89,7 +90,7 @@ if __name__ == '__main__':
             user_vector[i], gradient = user_update(user_vector[i], train_data[user_id_list[i]], encrypted_item_vector)
             # 保存用户i解密、本地更新、计算梯度和加密梯度的时间
             user_time_list.append(time.time() - t)
-            print('User-%s update using' % i, user_time_list[-1], 'seconds')
+            print('User-%s update using' % i, user_time_list[-1], 'seconds', file=result)
             # 将用户i加密的计算的梯度保存在列表0中
             edge0_encrypted_gradient_from_user.append(gradient)
 
@@ -105,23 +106,23 @@ if __name__ == '__main__':
             # 保存用户i本地更新和计算梯度的时间
             user_time_list.append(time.time() - t)
             # 打印出用户i本地更新和计算梯度的时间
-            print('User-%s update using' % str(i + 4), user_time_list[-1], 'seconds')
+            print('User-%s update using' % str(i + 4), user_time_list[-1], 'seconds', file=result)
             # 将用户i计算的梯度保存在列表1中
             edge1_encrypted_gradient_from_user.append(gradient)
 
         t4 = np.mean(user_time_list)
-        print('User0-6 Average time', t4)
+        print('User0-6 Average time', t4, file=result)
 
         # 打印传输的每个用户加密后的计算的梯度矩阵的时间t5 ，这个加密梯度矩阵的传输时间默认所有用户一致 , 传输速率为1Gb/s
         cache_size = (sys.getsizeof(edge0_encrypted_gradient_from_user[0][0][0].ciphertext()) +
                       sys.getsizeof(edge0_encrypted_gradient_from_user[0][0][0].exponent)) * \
                      len(edge0_encrypted_gradient_from_user[0]) * \
                      len(edge0_encrypted_gradient_from_user[0][0])
-        print('Size of Encrypted-gradient', cache_size / (2 ** 20), 'MB')
+        print('Size of Encrypted-gradient', cache_size / (2 ** 20), 'MB', file=result)
         communication_time = communication_time + cache_size * 8 / (band_width * 2 ** 30)
         t5 = communication_time
         print('transform CGi from user to edge using a %s Gb/s' % band_width,
-              'bandwidth, communication will use %s second' % communication_time)
+              'bandwidth, communication will use %s second' % communication_time, file=result)
         t = time.time()
 
         # 打印每个edge聚合的时间t6
@@ -132,7 +133,7 @@ if __name__ == '__main__':
 
         edge0_update_time = (time.time() - t) * (len(user_id_list) / len(user_id_list))
         t6 = edge0_update_time
-        print('edge0 update using', t6, 'seconds')
+        print('edge0 update using', t6, 'seconds', file=result)
 
         for g in edge1_encrypted_gradient_from_user:
             for i in range(len(encrypted_item_vector)):
@@ -141,15 +142,16 @@ if __name__ == '__main__':
 
         edge1_update_time = (time.time() - t) * (len(user_id_list) / len(user_id_list))
         t7 = edge1_update_time
-        print('edge1 update using', t7, 'seconds')
-        t8 = (t6+t7)/2
-        print('edge avg update time', t8, 'seconds')
-        print('edge transform 局部聚合后的加密梯度 to server', t5*4, 'seconds')
+        print('edge1 update using', t7, 'seconds', file=result)
+        t8 = (t6 + t7) / 2
+        print('edge avg update time', t8, 'seconds', file=result)
+        print('edge transform 局部聚合后的加密梯度 to server', t5 * 4, 'seconds', file=result)
         # for user computing loss
         item_vector = np.array([[private_key.decrypt(e) for e in vector] for vector in encrypted_item_vector])
-        print('loss', loss())
+        print('loss', loss(), file=result)
 
-        print('Costing = user update time + edge update time + server time', t4+t5+t8+t5*4, 'seconds')
+        print('Costing = user update time + edge update time + server time', t4 + t5 + t8 + t5 * 4, 'seconds',
+              file=result)
 
     prediction = []
     real_label = []
@@ -166,4 +168,4 @@ if __name__ == '__main__':
     prediction = np.array(prediction, dtype=np.float32)
     real_label = np.array(real_label, dtype=np.float32)
 
-    print('rmse', np.sqrt(np.mean(np.square(real_label - prediction))))
+    print('rmse', np.sqrt(np.mean(np.square(real_label - prediction))), file=result)
